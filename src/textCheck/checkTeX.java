@@ -11,7 +11,12 @@ import java.util.List;			//序列
 import java.util.Map;
 import java.util.Scanner;		//解析字符串
 
-public class checkTeX {
+public class checkTeX {	
+	private static double insertCost=1;		//插入距离 可转换为函数提高精度
+	private static double removeCost=1;		//删除距离 
+	private static double substitudeCost=1;	//替换距离 转换键盘相邻距离函数
+	private static double [][] subcostMat = new double [26][26]; //替换距离二维数组
+
 	public static void main(String[] args) {
 		new checkTeX().start();
 	}
@@ -20,13 +25,24 @@ public class checkTeX {
 		List<String> fileTemp=new ArrayList<String>();
 		String directionaryPath="./englishDictionary.txt";
 		String textPath="./Test.txt";
-		
-		createeditTree(directionaryPath);
-
 		double recTrd=1;	//推荐单词路径阈值下限
 		double editTrd=12;	//检测编辑路径阈值上限
-		double recNum=8;	//输出推荐单词个数上限,默认8 个
+		double recNum=8;	//输出推荐单词个数上限，默认8个
 		
+		//初始化编辑距离
+		for (int i = 0; i < 26; i++) {
+	        Arrays.fill(subcostMat[i], 1);
+	    }
+		//预设测试值
+		subcostMat['r'-'a']['e'-'a']=0.5;
+		subcostMat['r'-'a']['f'-'a']=0.5;
+		subcostMat['r'-'a']['t'-'a']=0.5;
+		subcostMat['t'-'a']['n'-'a']=2;
+		subcostMat['f'-'a']['e'-'a']=0.5;
+		subcostMat['f'-'a']['s'-'a']=0.5;
+		subcostMat['f'-'a']['t'-'a']=0.5;
+		//建立查询数组
+		createeditTree(directionaryPath);		
 		BufferedReader reader=null;	//字符缓冲输入流
 		try {
 			reader=new BufferedReader(new FileReader(textPath));	//读取检查文件
@@ -78,9 +94,8 @@ public class checkTeX {
 							result=search(word[i], j);
 							if(result.size()<recTrd) {
 								continue;
-							}
-							
-							String newWord;							//写入字典新词
+							}							
+							String newWord;							//写入新词
 							System.out.println("提示：在 "+ textLine +" 中");
 							System.out.println("第"+String.valueOf(i+1)+"个单词  "+word[i]+" 错误");
 							System.out.println("A.输入 0 接受单词  "+word[i]+"，并写入字典");
@@ -97,8 +112,7 @@ public class checkTeX {
 							System.out.println("");
 							System.out.println("C.直接输入替换单词");
 							Scanner inWord=new Scanner(System.in);
-							String in=inWord.nextLine();
-							
+							String in=inWord.nextLine();							
 							//将此单词加入字典
 							if(in.equals("0")) {
 								newWord=word[i];
@@ -119,13 +133,10 @@ public class checkTeX {
 									writeToDirectionary(newWord,directionaryPath);
 									put(newWord);									
 								}
-							}	
-							
+							}								
 							break;
 						}
-					}
-					
-					
+					}					
 				}
 				String temp="";
 				for(String part:word) {
@@ -134,8 +145,7 @@ public class checkTeX {
 				}
 				fileTemp.add(temp);
 			}
-			reader.close();
-			
+			reader.close();			
 			FileWriter textWriter=new FileWriter(textPath);
 			for(String line:fileTemp) {
 				textWriter.write(line+"\r\n");
@@ -143,13 +153,12 @@ public class checkTeX {
 			textWriter.close();
 		}catch(Exception e) {
 			e.printStackTrace();
-		}
+		}	
 		
-		System.out.println("文本检测完毕");		
-		
+		System.out.println("文本检测完毕");				
 	}
 	
-	//创建编辑检测文本
+	//创建检测距离树
 	public void createeditTree(String path) {
 		BufferedReader reader=null;
 		try {
@@ -192,9 +201,9 @@ public class checkTeX {
 		}
 	}
 	
-	//term 待查询的元素         
-	//redius 相似举例范围
-	//results 满足举例范围所有元素
+	//term 待查询的单词         
+	//redius 相似阈值范围
+	//results 满足举例范围所有单词
 	public List<String> search(String term,double redius){
 		List<String> results=new ArrayList<String>();		//定义动态数组队列 results
 		if(root!= null) {
@@ -203,16 +212,17 @@ public class checkTeX {
 		return results;
 	}
 	
-
 	private Node root;	
-	//建立Hash图  用一个map储存子节点
+	//建立Hash图   用一个map储存子节点
 	private static final class Node{
 		private final String value;
 		private final Map<Double,Node> children;
+		
 		public Node(String term) {
 			this.value=term;
 			this.children=new HashMap<Double,Node>();
 		}
+		
 		public void add(String value) {
 			//value与父节点的距离
 			double distance=ComputeDistance(this.value,value);
@@ -220,21 +230,21 @@ public class checkTeX {
 			if(distance ==0) {
 				return;
 			}
-			//从父节点的子节点中查找child，满足距离为distance
+			//从父节点的子节点中查找child,满足距离为distance
 			Node child=children.get(distance);
 			
-			//若距离父节点为distance的子节点不存在，则直接添加一个新的子节点
+			//若距离父节点为distance的子节点不存在,则直接添加一个新的子节点
 			if(child==null) {
 				children.put(distance, new Node(value));
 			}else {
-			//若距离父节点为distance子节点存在，则递归的将value添加到该子节点下
+			//若距离父节点为distance子节点存在, 则递归的将value添加到该子节点下
 				child.add(value);
 			}
 		}
 		
 		public void search(String term,double redius,List<String> results) {
 			double distance = ComputeDistance(this.value,term);
-			//与父节点的距离小于阈值，则添加到结果集中，并继续向下寻找
+			//与父节点的距离小于阈值,则添加到结果集中,并继续向下寻找
 			if(distance<=redius) {
 				results.add(this.value);
 			}
@@ -251,24 +261,11 @@ public class checkTeX {
 		}
 	}
 	
-
-	private static double insertCost=1;		//插入距离函数
-	private static double removeCost=1;		//删除距离函数
-	private static double substitudeCost=1;	//替换距离函数      如下可加入键盘相邻距离函数
-//	private static double [][] subcostMat= new double [26][26]; //替换距离矩	
-	//初始化编辑距离
-//	for (int i = 0; i < 26; i++) {
-//        Arrays.fill(subcostMat[i], 1);
-//    }
-	
 	//计算两个词之间的编辑距离    目标  → 查询
 	private static double ComputeDistance(String target,String source) {
 		int n=target.trim().length();
 		int m=source.trim().length();
-
-		
 		double [][] distance= new double [n+1][m+1];
-		
 		distance[0][0]=0;
 		//初始化边界距离 建立distance[n][m]矩阵 
 		for(int i=1;i<=n;i++) {
@@ -281,17 +278,16 @@ public class checkTeX {
 		for(int i=1;i<=n;i++) {
 			for(int j=1;j<=m;j++) {
 				//插入距离  [i-1][j] → [i][j]    相当于（j-1） +1 
-				double min=distance[i-1][j]+insertCost;				
+				double min=distance[i-1][j]+insertCost;
 				//替换距离   charAt 当前字符相同   [i-1][j-1] → [i][j]
 				if(target.charAt(i-1)==source.charAt(j-1)) {
 					if(min>distance[i-1][j-1])
 						min=distance[i-1][j-1];
-				}else {	
-					//替换距离函数
+				}else {					
 					substitudeCost = subeditCost(target.charAt(i-1),source.charAt(j-1));					
 					if(min>distance[i-1][j-1]+substitudeCost)
 						min=distance[i-1][j-1]+substitudeCost;
-				}				
+				}
 				//删除距离 [i][j-1] → [i][j]
 				if(min>distance[i][j-1]+removeCost) {
 					min=distance[i][j-1]+removeCost;
@@ -303,19 +299,14 @@ public class checkTeX {
 		return distance[n][m];
 	}
 	
-	//java中，char 类型' A'对应值为65，char 'a'对应值为97
-	//该函数可以做一个对应键盘距离的26*26的替换距离矩阵subCost[n,m]  按键盘距离分为1 2 3  三类替换距离
+	//java中，char 类型'A'对应值为65，char 'a'对应值为97
+	//该函数可以做一个对应键盘距离的26*26的替换距离矩阵subCost[n,m]  可以按键盘距离分为1 2 3  三类替换距离
 	private static double subeditCost(char a,char b) {
-		double subCost=1;
-		//举例替换距离
-		if((a=='r')&&((b=='e')||(b=='f')||(b=='s'))) {
-			subCost=0.5;	
-		}else if((a=='f')&&((b=='e')||(b=='t')||(b=='s'))) {
-			subCost=0.5;
+ 		double subCost=1;
+		//查找二维数组,获取替换距离(只限于字母)
+		if((a >= 'a' && a <= 'z')&&(b >= 'a' && b <= 'z')) {
+			subCost=subcostMat[a-'a'][b-'a'];
 		}		
-		//查找二维数组,获取替换距离
-//		subCost=subcostMat[a-'a'][b-'a'];
-//		System.out.print(subCost);
 		return subCost;
 	}
 		
