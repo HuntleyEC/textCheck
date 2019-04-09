@@ -1,0 +1,6 @@
+starf
+WaiteD
+writed
+- Redistributions of source code must retain the above copyright£¿ 
+  notice, this list of conditions and the following disclaimer.
+I figured they, and others, could benefit from an explanation. 
